@@ -21,7 +21,7 @@ Features
 4. **Manage your list** — use the category filter or search box to narrow things down, and hit the **Delete** button on any row to remove it.
 5. **Come back later** — your data is still there, since everything is stored locally in your browser.
 
-## ⚙️ How it works
+## ⚙️ How it works and easy step
 
 - Pure **HTML + CSS + JavaScript** in one file — no frameworks, no CDNs, no network calls.
 - Transactions are kept in memory and mirrored to `localStorage` under a single key so the page state persists.
