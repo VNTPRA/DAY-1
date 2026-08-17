@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Money Manager — Calculator</title>
+  <style>
+    /* ─── Reset & Base ─────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-from:       #0f1923;
+      --bg-to:         #1a2a3a;
+      --card-bg:       #162032;
+      --card-border:   #1e3050;
+      --display-bg:    #0d1822;
+      --accent:        #22c55e;          /* money-green accent */
+      --accent-dark:   #16a34a;
+      --accent-glow:   rgba(34,197,94,.25);
+      --op-bg:         #1e3a5f;
+      --op-hover:      #254a78;
+      --op-active:     #1a3356;
+      --digit-bg:      #1c2e44;
+      --digit-hover:   #243a54;
+      --digit-active:  #172538;
+      --clear-bg:      #2d1a1a;
+      --clear-hover:   #3d2020;
+      --clear-color:   #f87171;
+      --text-primary:  #e8f4f0;
+      --text-dim:      #6b8fa8;
+      --text-expr:     #94b8cc;
+      --font-display:  'Georgia', 'Times New Roman', serif;   /* editorial feel */
+      --font-ui:       'Trebuchet MS', 'Gill Sans', sans-serif;
+      --radius-card:   24px;
+      --radius-btn:    14px;
+      --shadow-card:   0 24px 64px rgba(0,0,0,.55), 0 4px 16px rgba(0,0,0,.4);
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(145deg, var(--bg-from) 0%, var(--bg-to) 100%);
+      font-family: var(--font-ui);
+      /* subtle dot-grid texture */
+      background-image:
+        radial-gradient(circle at 20% 30%, rgba(34,197,94,.06) 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(30,80,160,.1) 0%, transparent 50%),
+        linear-gradient(145deg, var(--bg-from) 0%, var(--bg-to) 100%);
+    }
+
+    /* ─── Outer Wrapper ─────────────────────────────────────────────────── */
+    .wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+      padding: 20px;
+    }
+
+    /* ─── Branding Header ───────────────────────────────────────────────── */
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--accent);
+      letter-spacing: .06em;
+      font-size: .78rem;
+      text-transform: uppercase;
+      opacity: .85;
+    }
+    .brand-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent-glow);
+    }
+
+    /* ─── Calculator Card ───────────────────────────────────────────────── */
+    .calc-card {
+      width: 340px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-card);
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* top accent stripe */
+    .calc-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      opacity: .7;
+    }
+
+    /* ─── Display Area ──────────────────────────────────────────────────── */
+    .display {
+      background: var(--display-bg);
+      padding: 24px 22px 18px;
+      min-height: 130px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: flex-end;
+      gap: 6px;
+      border-bottom: 1px solid var(--card-border);
+      position: relative;
+    }
+
+    /* mode label top-left */
+    .mode-label {
+      position: absolute;
+      top: 14px;
+      left: 18px;
+      font-size: .68rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    /* expression line (input history) */
+    .expr-line {
+      font-family: var(--font-display);
+      font-size: .95rem;
+      color: var(--text-expr);
+      min-height: 22px;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-align: right;
+      transition: opacity .15s;
+    }
+
+    /* main number */
+    .main-line {
+      font-family: var(--font-display);
+      font-size: 2.55rem;
+      font-weight: 400;
+      color: var(--text-primary);
+      letter-spacing: -.01em;
+      line-height: 1;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-align: right;
+      transition: color .2s;
+    }
+    .main-line.error {
+      font-size: 1.1rem;
+      color: var(--clear-color);
+      letter-spacing: 0;
+    }
+    /* shrink font when number is long */
+    .main-line.medium { font-size: 1.9rem; }
+    .main-line.small  { font-size: 1.4rem; }
+
+    /* ─── Button Grid ───────────────────────────────────────────────────── */
+    .btn-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      padding: 18px 16px 20px;
+    }
+
+    /* ─── Base Button ───────────────────────────────────────────────────── */
+    button {
+      border: none;
+      cursor: pointer;
+      border-radius: var(--radius-btn);
+      font-family: var(--font-ui);
+      font-size: 1.05rem;
+      font-weight: 500;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background .12s, transform .08s, box-shadow .12s;
+      outline: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ripple pseudo */
+    button::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,.06);
+      border-radius: inherit;
+      opacity: 0;
+      transition: opacity .2s;
+    }
+    button:hover::after  { opacity: 1; }
+    button:active        { transform: scale(.93); }
+
+    /* ─── Digit Buttons ─────────────────────────────────────────────────── */
+    .btn-digit {
+      background: var(--digit-bg);
+      color: var(--text-primary);
+      border: 1px solid rgba(255,255,255,.04);
+      letter-spacing: .02em;
+    }
+    .btn-digit:hover  { background: var(--digit-hover); }
+    .btn-digit:active { background: var(--digit-active); }
+
+    /* zero spans two columns */
+    .btn-zero {
+      grid-column: span 2;
+      justify-content: flex-start;
+      padding-left: 26px;
+      letter-spacing: .02em;
+    }
+
+    /* ─── Operator Buttons ──────────────────────────────────────────────── */
+    .btn-op {
+      background: var(--op-bg);
+      color: #7ec8f4;
+      border: 1px solid rgba(100,180,255,.1);
+      font-size: 1.25rem;
+    }
+    .btn-op:hover  { background: var(--op-hover); }
+    .btn-op:active { background: var(--op-active); }
+    /* highlight the active operator */
+    .btn-op.active-op {
+      background: #1a4a78;
+      color: #b0dfff;
+      box-shadow: inset 0 0 0 1px rgba(100,200,255,.25);
+    }
+
+    /* ─── Equals Button ─────────────────────────────────────────────────── */
+    .btn-equals {
+      background: var(--accent);
+      color: #fff;
+      font-size: 1.35rem;
+      box-shadow: 0 4px 18px var(--accent-glow);
+    }
+    .btn-equals:hover  { background: var(--accent-dark); }
+    .btn-equals:active { background: #15803d; box-shadow: none; }
+
+    /* ─── Clear & Delete ────────────────────────────────────────────────── */
+    .btn-clear {
+      background: var(--clear-bg);
+      color: var(--clear-color);
+      border: 1px solid rgba(248,113,113,.1);
+      font-size: .95rem;
+      letter-spacing: .04em;
+    }
+    .btn-clear:hover  { background: var(--clear-hover); }
+
+    .btn-back {
+      background: var(--digit-bg);
+      color: #f4a96b;
+      border: 1px solid rgba(255,255,255,.04);
+      font-size: 1.1rem;
+    }
+    .btn-back:hover { background: var(--digit-hover); }
+
+    /* ─── Utility Buttons (%, +/-) ──────────────────────────────────────── */
+    .btn-util {
+      background: #172a40;
+      color: var(--text-dim);
+      border: 1px solid rgba(255,255,255,.05);
+      font-size: .95rem;
+    }
+    .btn-util:hover { background: #1d3450; color: #94b8cc; }
+
+    /* ─── Footer note ───────────────────────────────────────────────────── */
+    .calc-footer {
+      font-size: .68rem;
+      color: var(--text-dim);
+      text-align: center;
+      opacity: .55;
+      letter-spacing: .05em;
+    }
+
+    /* ─── Press animation helper ────────────────────────────────────────── */
+    @keyframes flash {
+      0%   { opacity: 1; }
+      50%  { opacity: .4; }
+      100% { opacity: 1; }
+    }
+    .flash { animation: flash .18s ease; }
+  </style>
+</head>
+<body>
+
+<div class="wrapper">
+
+  <!-- Branding -->
+  <div class="brand">
+    <div class="brand-dot"></div>
+    Money Manager
+    <div class="brand-dot"></div>
+  </div>
+
+  <!-- Calculator card -->
+  <div class="calc-card" id="calc">
+
+    <!-- Display -->
+    <div class="display">
+      <span class="mode-label">Calculator</span>
+      <div class="expr-line" id="exprLine">&nbsp;</div>
+      <div class="main-line" id="mainLine">0</div>
+    </div>
+
+    <!-- Button grid -->
+    <div class="btn-grid">
+
+      <!-- Row 1: utility functions -->
+      <button class="btn-clear"  data-action="clear">C</button>
+      <button class="btn-util"   data-action="toggle-sign">+/-</button>
+      <button class="btn-util"   data-action="percent">%</button>
+      <button class="btn-op"     data-op="/">&divide;</button>
+
+      <!-- Row 2 -->
+      <button class="btn-digit"  data-digit="7">7</button>
+      <button class="btn-digit"  data-digit="8">8</button>
+      <button class="btn-digit"  data-digit="9">9</button>
+      <button class="btn-op"     data-op="*">&times;</button>
+
+      <!-- Row 3 -->
+      <button class="btn-digit"  data-digit="4">4</button>
+      <button class="btn-digit"  data-digit="5">5</button>
+      <button class="btn-digit"  data-digit="6">6</button>
+      <button class="btn-op"     data-op="-">&minus;</button>
+
+      <!-- Row 4 -->
+      <button class="btn-digit"  data-digit="1">1</button>
+      <button class="btn-digit"  data-digit="2">2</button>
+      <button class="btn-digit"  data-digit="3">3</button>
+      <button class="btn-op"     data-op="+">+</button>
+
+      <!-- Row 5 -->
+      <button class="btn-digit btn-zero" data-digit="0">0</button>
+      <button class="btn-digit"          data-action="decimal">.</button>
+      <button class="btn-back"           data-action="backspace">&#9003;</button>
+      <button class="btn-equals"         data-action="equals">=</button>
+
+    </div>
+  </div>
+
+  <div class="calc-footer">Left-to-right evaluation &bull; Keyboard supported</div>
+</div>
+
+<script>
+  /**
+   * Money Manager Calculator
+   * ─────────────────────────────────────────────────────────────
+   * Evaluation model: left-to-right (no operator precedence).
+   *   e.g.  5 + 3 * 2  →  (5 + 3) * 2  =  16
+   *
+   * State machine has three slots:
+   *   operand1  – the accumulator / first number
+   *   operator  – pending operator (+, -, *, /)
+   *   operand2  – the number currently being typed
+   *   lastResult – stores computed value to allow chained =
+   */
+
+  (function () {
+
+    /* ── DOM refs ────────────────────────────────────────────── */
+    const mainLine = document.getElementById('mainLine');
+    const exprLine = document.getElementById('exprLine');
+
+    /* ── State ───────────────────────────────────────────────── */
+    let operand1   = null;   // number | null
+    let operator   = null;   // string | null
+    let operand2   = null;   // string (being built) | null
+    let justEquals = false;  // did we just press = ?
+
+    /* ── Formatting helpers ──────────────────────────────────── */
+
+    /**
+     * Format a number for display.
+     * - Adds thousands separators on the integer part.
+     * - Preserves decimal digits up to 10 significant figures.
+     * - Caps the display string at 15 characters to avoid overflow.
+     */
+    function formatNumber(n) {
+      if (!isFinite(n)) return 'Error';
+
+      // Use toPrecision to avoid floating-point noise, then parse back
+      let str = parseFloat(n.toPrecision(10)).toString();
+
+      // Split on decimal
+      let [intPart, decPart] = str.split('.');
+
+      // Add thousands separator to integer part
+      intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+      let result = decPart !== undefined ? intPart + '.' + decPart : intPart;
+
+      // Cap length gracefully
+      if (result.replace(/[^0-9.]/g, '').length > 12) {
+        // Fall back to exponential notation
+        result = parseFloat(n.toPrecision(6)).toExponential();
+      }
+
+      return result;
+    }
+
+    /**
+     * Returns the current display value (the number being typed,
+     * or operand1 if nothing is being typed yet).
+     */
+    function currentDisplay() {
+      if (operand2 !== null) return operand2;
+      if (operand1 !== null) return operand1.toString();
+      return '0';
+    }
+
+    /* ── Display update ──────────────────────────────────────── */
+    function render(mainOverride, error) {
+      const raw = mainOverride !== undefined ? mainOverride : currentDisplay();
+
+      // Main line
+      if (error) {
+        mainLine.textContent = error;
+        mainLine.className   = 'main-line error';
+      } else {
+        // Format only finished numbers; leave in-progress strings as-is
+        //   (so typing "1." doesn't get chopped to "1")
+        let display = raw;
+        if (mainOverride === undefined && operand2 !== null) {
+          // User is typing — show raw but add commas to integer part
+          let [ip, dp] = operand2.split('.');
+          ip = ip.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+          display = dp !== undefined ? ip + '.' + dp : ip;
+        } else if (!error) {
+          // Show formatted number
+          const num = parseFloat(raw);
+          display = isNaN(num) ? raw : formatNumber(num);
+        }
+
+        mainLine.textContent = display;
+
+        // Adjust font size based on length
+        const len = display.replace(/[^0-9.eE]/g, '').length;
+        mainLine.className =
+          len > 14 ? 'main-line small' :
+          len >  9 ? 'main-line medium' :
+                     'main-line';
+      }
+
+      // Expression line
+      let expr = '';
+      if (operator) {
+        const op1str = operand1 !== null ? formatNumber(operand1) : '';
+        const opSym  = { '+': '+', '-': '-', '*': 'x', '/': '/' }[operator] || operator;
+        expr = op1str + ' ' + opSym;
+        if (justEquals) expr = ''; // after =, clear the expression hint
+      }
+      exprLine.textContent = expr || '\u00a0'; // nbsp keeps height stable
+
+      // Highlight active operator button
+      document.querySelectorAll('.btn-op').forEach(btn => {
+        btn.classList.toggle('active-op',
+          !justEquals && btn.dataset.op === operator && operand2 === null
+        );
+      });
+    }
+
+    /* ── Core arithmetic ─────────────────────────────────────── */
+    function applyOperator(a, op, b) {
+      switch (op) {
+        case '+': return a + b;
+        case '-': return a - b;
+        case '*': return a * b;
+        case '/':
+          if (b === 0) return 'DIV_ZERO';
+          return a / b;
+      }
+    }
+
+    /* ── Button handlers ─────────────────────────────────────── */
+
+    function handleDigit(d) {
+      justEquals = false;
+
+      if (operand2 === null) {
+        // Start a new second operand (or fresh entry)
+        operand2 = (d === '0') ? '0' : d;
+      } else {
+        // Prevent leading zeros (e.g. "007" → just "7")
+        if (operand2 === '0' && d !== '.') {
+          operand2 = d;
+        } else {
+          // Limit raw digit count to 12
+          const digits = operand2.replace(/[^0-9]/g, '').length;
+          if (digits < 12) operand2 += d;
+        }
+      }
+      render();
+    }
+
+    function handleDecimal() {
+      justEquals = false;
+      if (operand2 === null) operand2 = '0';
+      if (!operand2.includes('.')) operand2 += '.';
+      render();
+    }
+
+    function handleOperator(op) {
+      justEquals = false;
+
+      // If we have a pending operation and a second operand, evaluate first
+      if (operator !== null && operand2 !== null) {
+        const b   = parseFloat(operand2);
+        const res = applyOperator(operand1, operator, b);
+        if (res === 'DIV_ZERO') {
+          showError('Cannot divide by zero');
+          return;
+        }
+        operand1  = res;
+        operand2  = null;
+      } else if (operand2 !== null) {
+        // First operator press: move operand2 into operand1
+        operand1 = parseFloat(operand2);
+        operand2 = null;
+      } else if (operand1 === null) {
+        operand1 = 0;
+      }
+      // If operand2 is null (operator chained right away), just change operator
+      operator = op;
+      render();
+    }
+
+    function handleEquals() {
+      if (operator === null || operand2 === null) {
+        // Nothing to compute
+        justEquals = true;
+        render();
+        return;
+      }
+      const b   = parseFloat(operand2);
+      const res = applyOperator(operand1, operator, b);
+
+      if (res === 'DIV_ZERO') {
+        showError('Cannot divide by zero');
+        return;
+      }
+
+      // Show the full expression in the expression line before clearing it
+      const op1str = formatNumber(operand1);
+      const op2str = formatNumber(b);
+      const opSym  = { '+': '+', '-': '-', '*': 'x', '/': '/' }[operator] || operator;
+      exprLine.textContent = op1str + ' ' + opSym + ' ' + op2str + ' =';
+
+      // Update state: result becomes operand1, clear the rest
+      operand1   = res;
+      operand2   = null;
+      operator   = null;
+      justEquals = true;
+
+      // Render main with formatted result
+      mainLine.textContent = formatNumber(res);
+      const len = formatNumber(res).replace(/[^0-9.eE]/g, '').length;
+      mainLine.className =
+        len > 14 ? 'main-line small' :
+        len >  9 ? 'main-line medium' :
+                   'main-line';
+
+      // Remove operator highlight
+      document.querySelectorAll('.btn-op').forEach(b => b.classList.remove('active-op'));
+    }
+
+    function handleClear() {
+      operand1   = null;
+      operand2   = null;
+      operator   = null;
+      justEquals = false;
+      clearError();
+      render('0');
+      exprLine.textContent = '\u00a0';
+    }
+
+    function handleBackspace() {
+      justEquals = false;
+      if (operand2 !== null && operand2.length > 0) {
+        operand2 = operand2.slice(0, -1);
+        if (operand2 === '' || operand2 === '-') operand2 = null;
+      }
+      clearError();
+      render();
+    }
+
+    function handleToggleSign() {
+      justEquals = false;
+      if (operand2 !== null) {
+        operand2 = operand2.startsWith('-')
+          ? operand2.slice(1)
+          : '-' + operand2;
+      } else if (operand1 !== null) {
+        operand1 = -operand1;
+      }
+      render();
+    }
+
+    function handlePercent() {
+      justEquals = false;
+      if (operand2 !== null) {
+        const n  = parseFloat(operand2);
+        // If chained with an operator, treat as percentage of operand1
+        // e.g. 200 + 20% → 200 + (200 * 0.20) = 240
+        const pct = (operator !== null && operand1 !== null)
+          ? (operand1 * n) / 100
+          : n / 100;
+        operand2 = pct.toString();
+      } else if (operand1 !== null) {
+        operand1 = operand1 / 100;
+      }
+      render();
+    }
+
+    /* ── Error display ───────────────────────────────────────── */
+    function showError(msg) {
+      operand1 = null; operand2 = null; operator = null; justEquals = false;
+      render(undefined, msg);
+      exprLine.textContent = '\u00a0';
+    }
+    function clearError() {
+      if (mainLine.classList.contains('error')) {
+        mainLine.className = 'main-line';
+      }
+    }
+
+    /* ── Button click wiring ─────────────────────────────────── */
+    document.getElementById('calc').addEventListener('click', function (e) {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+
+      // Animate
+      mainLine.classList.remove('flash');
+      void mainLine.offsetWidth; // reflow to restart animation
+      // (skip flash on digits for speed — only on operators/equals)
+
+      const { action, op, digit } = btn.dataset;
+
+      if (digit !== undefined)         { handleDigit(digit); return; }
+      if (op    !== undefined)         { handleOperator(op); return; }
+
+      switch (action) {
+        case 'clear':       handleClear();       break;
+        case 'backspace':   handleBackspace();   break;
+        case 'toggle-sign': handleToggleSign();  break;
+        case 'percent':     handlePercent();     break;
+        case 'decimal':     handleDecimal();     break;
+        case 'equals':
+          mainLine.classList.add('flash');
+          handleEquals();
+          break;
+      }
+    });
+
+    /* ── Keyboard support ────────────────────────────────────── */
+    document.addEventListener('keydown', function (e) {
+      // Don't hijack browser shortcuts
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      const k = e.key;
+
+      if (k >= '0' && k <= '9')     { e.preventDefault(); handleDigit(k); }
+      else if (k === '.')           { e.preventDefault(); handleDecimal(); }
+      else if (k === '+')           { e.preventDefault(); handleOperator('+'); }
+      else if (k === '-')           { e.preventDefault(); handleOperator('-'); }
+      else if (k === '*')           { e.preventDefault(); handleOperator('*'); }
+      else if (k === '/')           { e.preventDefault(); handleOperator('/'); }
+      else if (k === 'Enter' || k === '=') { e.preventDefault(); mainLine.classList.add('flash'); handleEquals(); }
+      else if (k === 'Backspace')   { e.preventDefault(); handleBackspace(); }
+      else if (k === 'Escape' || k === 'c' || k === 'C') { e.preventDefault(); handleClear(); }
+      else if (k === '%')           { e.preventDefault(); handlePercent(); }
+    });
+
+    /* ── Initial render ──────────────────────────────────────── */
+    render('0');
+
+  })();
+</script>
+</body>
+</html>
